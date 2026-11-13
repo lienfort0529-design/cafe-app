@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>カフェ数字管理</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#6b4428">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="カフェ管理">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root { --bg:#f7f3ee; --card:#fff; --ink:#2b2420; --sub:#7a6e66; --line:#e6ddd3; --brand:#6b4428; --brand2:#a0714f;
+    --good:#2f7d4f; --bad:#c0392b; --warn:#fdecea; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 -apple-system,"Hiragino Sans","Noto Sans JP",sans-serif; -webkit-text-size-adjust:100%; }
+  header { position:sticky; top:0; z-index:5; background:var(--brand); color:#fff; padding:calc(12px + env(safe-area-inset-top)) 16px 12px; font-weight:700; display:flex; align-items:center; }
+  header #title { flex:1; }
+  header #who { font-weight:400; font-size:12px; opacity:.85; }
+  .login { max-width:360px; margin:40px auto; text-align:center; }
+  .login .logo { width:88px; height:88px; border-radius:22px; margin-bottom:8px; }
+  .login input { text-align:center; font-size:24px; letter-spacing:.3em; }
+  main { max-width:640px; margin:0 auto; padding:12px 12px 150px; }
+  nav { position:fixed; bottom:0; left:0; right:0; z-index:6; display:flex; background:#fff; border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom); }
+  nav button { flex:1; border:0; background:none; padding:10px 0 12px; font-size:12px; color:var(--sub); }
+  nav button b { display:block; font-size:18px; line-height:1.2; }
+  nav button.on { color:var(--brand); font-weight:700; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:10px; }
+  .row { display:flex; align-items:center; gap:8px; }
+  .grow { flex:1; min-width:0; }
+  .sub { color:var(--sub); font-size:13px; }
+  .num { font-variant-numeric:tabular-nums; }
+  h2 { font-size:14px; color:var(--sub); margin:18px 4px 8px; font-weight:600; }
+  input, select { font:inherit; font-size:16px; padding:9px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; width:100%; color:var(--ink); }
+  label { display:block; font-size:13px; color:var(--sub); margin:10px 0 4px; }
+  .btn { font:inherit; border:0; border-radius:10px; padding:11px 14px; background:var(--brand); color:#fff; font-weight:700; }
+  .btn.sec { background:#efe6dc; color:var(--brand); }
+  .btn.del { background:none; color:var(--bad); }
+  .btn.wide { width:100%; }
+  .btn:disabled { opacity:.5; }
+  .chip { display:inline-block; padding:2px 8px; border-radius:99px; font-size:12px; font-weight:700; background:#e8f3ec; color:var(--good); }
+  .chip.bad { background:var(--warn); color:var(--bad); }
+  .chip.off { background:#eee; color:#888; }
+  .menu-item { display:flex; gap:10px; align-items:center; cursor:pointer; }
+  .menu-item .stats { text-align:right; font-size:13px; }
+  .over { border-color:#f1b5ad; background:#fffafa; }
+  .toolbar { display:flex; gap:8px; margin-bottom:8px; }
+  .toolbar select, .toolbar input { flex:1; }
+  .kpi { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+  .kpi div { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+  .kpi small { display:block; color:var(--sub); font-size:12px; }
+  .kpi strong { font-size:19px; }
+  .kpi .big { grid-column:1 / -1; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { padding:6px 4px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; white-space:normal; }
+  th { color:var(--sub); font-weight:600; }
+  .bar { height:8px; background:var(--brand2); border-radius:4px; }
+  .qty { display:flex; align-items:center; gap:6px; }
+  .qty button { width:38px; height:38px; border-radius:50%; border:1px solid var(--line); background:#fff; font-size:20px; color:var(--brand); }
+  .qty input { width:58px; text-align:center; padding:7px 4px; }
+  .footer-bar { position:fixed; left:0; right:0; bottom:calc(58px + env(safe-area-inset-bottom)); z-index:5; background:#fff; border-top:1px solid var(--line); padding:10px 12px; }
+  .footer-bar > div { max-width:640px; margin:0 auto; }
+  #modal { position:fixed; inset:0; z-index:10; background:var(--bg); overflow:auto; display:none; }
+  #modal.open { display:block; }
+  #modal .head { position:sticky; top:0; z-index:2; background:var(--brand); color:#fff; padding:calc(10px + env(safe-area-inset-top)) 12px 10px; display:flex; align-items:center; gap:8px; }
+  #modal .head button { background:none; border:0; color:#fff; font:inherit; font-size:15px; }
+  #modal .body { max-width:640px; margin:0 auto; padding:12px 12px 120px; }
+  .line { display:grid; grid-template-columns:1fr 84px 34px; gap:6px; align-items:center; margin-bottom:6px; }
+  .line .x { border:0; background:none; color:var(--bad); font-size:20px; }
+  .line-cost { grid-column:1 / -1; font-size:12px; color:var(--sub); margin:-2px 0 6px 4px; }
+  .summary { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; text-align:center; }
+  .summary small { display:block; font-size:11px; color:var(--sub); }
+  .summary strong { font-size:16px; }
+  #toast { position:fixed; left:50%; top:60px; transform:translateX(-50%); background:#333; color:#fff; padding:9px 16px; border-radius:99px; font-size:14px; z-index:20; display:none; max-width:90%; }
+  #loading { position:fixed; inset:0; background:rgba(255,255,255,.6); z-index:30; display:none; align-items:center; justify-content:center; font-weight:700; color:var(--brand); }
+  .wx { display:flex; gap:6px; }
+  .wx button { flex:1; border:1px solid var(--line); background:#fff; border-radius:10px; padding:8px 0; font:inherit; font-size:13px; color:var(--ink); }
+  .wx button.on { border-color:var(--brand); background:#efe6dc; font-weight:700; }
+  .chartbox { position:relative; height:220px; }
+  .note { font-size:12px; color:var(--sub); margin-top:6px; }
+  .up { color:var(--good); } .down { color:var(--bad); }
+  .empty { text-align:center; color:var(--sub); padding:30px 10px; }
+</style>
+</head>
+<body>
+<header><span id="title">カフェ数字管理</span><span id="who"></span></header>
+<main id="main"></main>
+<nav id="nav"></nav>
+<div id="modal"></div>
+<div id="toast"></div>
+<div id="loading">読み込み中…</div>
+
+<script>
+// Apps Script を「ウェブアプリ」で公開したときの URL（/exec で終わるもの）
+const API_URL = 'https://script.google.com/macros/s/AKfycbwwPwh1FFp9jgSaGFfIZRoYtUYYHWQHGnWFNsAUd5rixVm_bs5nd8E5cSdJphxumQ47/exec';
+const ALL_TABS = [['menu','☕','メニュー'],['sales','✏️','販売入力'],['report','📊','集計'],['mat','🫘','材料'],['set','⚙️','設定']];
+const STAFF_TABS = ['sales', 'report', 'set'];
+let TABS = ALL_TABS;
+const isOwner = () => D && D.me && D.me.role === 'owner';
+const UNITS = ['g','ml','個'];
+const MAT_CATS = ['豆','乳製品','シロップ・ソース','フード材料','カップ・資材','その他'];
+let D = null, tab = 'menu', menuFilter = 'active', menuSort = 'cat', menuQuery = '';
+let salesDate = null, salesQty = {}, salesDaily = {}, salesDirty = false, reportMonth = null;
+const WEATHER = [['晴れ', '☀️'], ['くもり', '☁️'], ['雨', '☔'], ['雪', '❄️']];
+const wIcon = w => (WEATHER.find(x => x[0] === w) || [])[1] || '';
+
+// ===== 共通 =====
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const yenD = (n, d) => { const v = Math.round(Math.abs(n || 0) * 10 ** d) / 10 ** d; return (n < 0 && v ? '−¥' : '¥') + v.toLocaleString(undefined, { maximumFractionDigits: d }); };
+const yen = n => yenD(n, 0);
+const yen1 = n => yenD(n, 1);
+const yenU = n => yenD(n, 2); // 材料の単価（1g・1mlあたり）
+const pct = n => isFinite(n) ? (Math.round(n * 1000) / 10).toFixed(1) + '%' : '―';
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', 2500); }
+// ログインしたまま使えるように、ログインの鍵はこのスマホに保存する
+const store = {
+  get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} },
+};
+async function call(fn, ...args) {
+  $('#loading').style.display = 'flex';
+  try {
+    // text/plain で送ると Apps Script でもブラウザの事前確認（CORS）が要らない
+    const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ fn, args, token: store.get('cafe_token') }) });
+    const r = await res.json();
+    if (r.ok) return r.data;
+    if (r.code === 'auth') { store.set('cafe_token', null); showLogin(); }
+    else alert(r.error);
+    throw new Error(r.error);
+  } catch (e) {
+    if (e instanceof TypeError) alert('通信できませんでした。電波を確認してください');
+    throw e;
+  } finally { $('#loading').style.display = 'none'; }
+}
+
+// ===== 計算 =====
+const taxRate = () => 1 + (D.settings['消費税率'] || 0);
+const target = () => D.settings['目標原価率'] || 0.3;
+const matById = id => D.materials.find(m => m.id === id);
+const unitPrice = m => m && m.amount > 0 ? m.price / m.amount : 0;
+const costOf = (lines, override) => (lines || []).reduce((a, l) => {
+  const m = matById(l.matId);
+  return a + (Number(l.qty) || 0) * (override && override.id === l.matId ? unitPrice(override) : unitPrice(m));
+}, 0);
+function metrics(price, cost) {
+  const ex = price / taxRate(), gross = ex - cost;
+  return { ex, cost, gross, costRate: ex > 0 ? cost / ex : NaN, grossRate: ex > 0 ? gross / ex : NaN };
+}
+const menuMetrics = m => metrics(m.price, costOf(D.recipes[m.id]));
+const cats = list => [...new Set(list.map(x => x.cat || 'その他'))];
+
+// ===== 画面切り替え =====
+function renderNav() {
+  TABS = isOwner() ? ALL_TABS : ALL_TABS.filter(t => STAFF_TABS.includes(t[0]));
+  $('#who').textContent = D && D.me ? D.me.name + (isOwner() ? '（オーナー）' : '') : '';
+  $('#nav').innerHTML = TABS.map(([k, i, n]) => `<button class="${k === tab ? 'on' : ''}" onclick="go('${k}')"><b>${i}</b>${n}</button>`).join('');
+}
+function go(k) {
+  if (tab === 'sales' && k !== 'sales' && salesDirty && !confirm('販売入力が保存されていません。移動しますか？')) return;
+  tab = k; if (k !== 'sales') salesDirty = false;
+  $('#title').textContent = TABS.find(t => t[0] === k)[2];
+  renderNav(); window.scrollTo(0, 0); render();
+}
+function render() {
+  ({ menu: renderMenus, sales: renderSales, report: renderReport, mat: renderMats, set: renderSettings })[tab]();
+}
+function openModal(title, html, onBack) {
+  const m = $('#modal');
+  m.innerHTML = `<div class="head"><button onclick="closeModal()">‹ 戻る</button><div class="grow" style="font-weight:700">${esc(title)}</div></div><div class="body">${html}</div>`;
+  m.classList.add('open'); m.scrollTop = 0;
+}
+function closeModal() { $('#modal').classList.remove('open'); }
+
+// ===== メニュー一覧 =====
+function renderMenus() {
+  let list = D.menus.filter(m => menuFilter === 'all' || (menuFilter === 'active') === m.active);
+  if (menuQuery) list = list.filter(m => (m.name + m.cat).includes(menuQuery));
+  const rows = list.map(m => ({ m, k: menuMetrics(m) }));
+  if (menuSort === 'rate') rows.sort((a, b) => (b.k.costRate || 0) - (a.k.costRate || 0));
+  if (menuSort === 'gross') rows.sort((a, b) => b.k.gross - a.k.gross);
+  const over = rows.filter(r => r.k.costRate > target()).length;
+  const item = ({ m, k }) => `<div class="card menu-item ${k.costRate > target() ? 'over' : ''}" onclick="editMenu('${m.id}')">
+      <div class="grow"><div style="font-weight:700">${esc(m.name)} ${m.active ? '' : '<span class="chip off">休止</span>'}</div>
+        <div class="sub num">売価 ${yen(m.price)}　原価 ${yen1(k.cost)}</div></div>
+      <div class="stats num"><span class="chip ${k.costRate > target() ? 'bad' : ''}">原価率 ${pct(k.costRate)}</span>
+        <div>粗利 <b>${yen(k.gross)}</b>（${pct(k.grossRate)}）</div></div></div>`;
+  let body;
+  if (!D.menus.length) body = `<div class="empty">まだメニューがありません。<br>先に「材料」タブで材料を登録してから、メニューを追加してください。</div>`;
+  else if (menuSort === 'cat') body = cats(rows.map(r => r.m)).map(c => `<h2>${esc(c)}</h2>` + rows.filter(r => (r.m.cat || 'その他') === c).map(item).join('')).join('');
+  else body = rows.map(item).join('');
+  $('#main').innerHTML = `
+    <div class="toolbar"><input placeholder="🔍 メニュー名で探す" value="${esc(menuQuery)}" oninput="menuQuery=this.value;renderMenuListOnly()"></div>
+    <div class="toolbar">
+      <select onchange="menuFilter=this.value;render()">${[['active','販売中'],['off','休止中'],['all','すべて']].map(([v, n]) => `<option value="${v}" ${v === menuFilter ? 'selected' : ''}>${n}（${D.menus.filter(m => v === 'all' || (v === 'active') === m.active).length}品）</option>`).join('')}</select>
+      <select onchange="menuSort=this.value;render()">${[['cat','カテゴリ順'],['rate','原価率が高い順'],['gross','粗利が多い順']].map(([v, n]) => `<option value="${v}" ${v === menuSort ? 'selected' : ''}>${n}</option>`).join('')}</select>
+    </div>
+    ${over ? `<div class="card over sub">⚠️ 目標原価率 ${pct(target())} を超えているメニューが <b style="color:var(--bad)">${over}品</b> あります</div>` : ''}
+    <div id="menuList">${body}</div>
+    <button class="btn wide" style="margin-top:8px" onclick="editMenu()">＋ メニューを追加</button>`;
+}
+function renderMenuListOnly() { render(); const i = $('#main input'); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+
+// ===== メニュー編集 =====
+let ed = null;
+function editMenu(id, copyFrom) {
+  const src = D.menus.find(m => m.id === (id || copyFrom));
+  ed = { menu: src ? { ...src } : { name: '', cat: '', price: 0, active: true }, lines: ((src && D.recipes[src.id]) || []).map(l => ({ ...l })) };
+  if (copyFrom) { ed.menu.id = null; ed.menu.name += '（コピー）'; }
+  if (!ed.lines.length) ed.lines.push({ matId: '', qty: '' });
+  const isNew = !ed.menu.id;
+  openModal(isNew ? 'メニューを追加' : 'メニューを編集', `
+    <div class="card"><div class="summary num" id="sum"></div></div>
+    <label>メニュー名</label><input id="mName" value="${esc(ed.menu.name)}" placeholder="例：カフェラテ（M）">
+    <div class="row"><div class="grow"><label>カテゴリ</label><input id="mCat" list="catList" value="${esc(ed.menu.cat)}" placeholder="例：エスプレッソ">
+      <datalist id="catList">${cats(D.menus).map(c => `<option value="${esc(c)}">`).join('')}</datalist></div>
+      <div class="grow"><label>売価（税込・円）</label><input id="mPrice" type="number" inputmode="numeric" value="${ed.menu.price || ''}" oninput="updEd()"></div></div>
+    <label>状態</label><select id="mActive"><option value="1">販売中</option><option value="0" ${ed.menu.active ? '' : 'selected'}>休止（メニューから外す）</option></select>
+    <h2>レシピ（1杯に使う量）</h2>
+    <div id="lines"></div>
+    <button class="btn sec wide" onclick="ed.lines.push({matId:'',qty:''});drawLines()">＋ 材料を追加</button>
+    ${D.materials.length ? '' : '<div class="sub" style="margin-top:6px">※ 材料が未登録です。「材料」タブで先に登録してください。</div>'}
+    <h2>売価シミュレーション</h2>
+    <div class="card"><label style="margin-top:0">この売価にしたら（税込・円）</label><input id="sim" type="number" inputmode="numeric" placeholder="例：550" oninput="updEd()"><div id="simOut" class="sub num" style="margin-top:6px"></div></div>
+    <button class="btn wide" onclick="saveMenuEd()">保存する</button>
+    ${isNew ? '' : `<div class="row" style="margin-top:10px"><button class="btn sec grow" onclick="editMenu(null,'${ed.menu.id}')">複製して新しく作る</button><button class="btn del" onclick="delMenu('${ed.menu.id}')">削除</button></div>`}`);
+  drawLines();
+}
+function matOptions(sel) {
+  const groups = cats(D.materials);
+  return `<option value="">材料を選ぶ</option>` + groups.map(c => `<optgroup label="${esc(c)}">` +
+    D.materials.filter(m => (m.cat || 'その他') === c).map(m => `<option value="${m.id}" ${m.id === sel ? 'selected' : ''}>${esc(m.name)}</option>`).join('') + '</optgroup>').join('');
+}
+function drawLines() {
+  $('#lines').innerHTML = ed.lines.map((l, i) => {
+    const m = matById(l.matId);
+    return `<div class="line"><select onchange="ed.lines[${i}].matId=this.value;drawLines()">${matOptions(l.matId)}</select>
+      <input type="number" inputmode="decimal" placeholder="${m ? m.unit : '量'}" value="${l.qty}" oninput="ed.lines[${i}].qty=this.value;updEd()">
+      <button class="x" onclick="ed.lines.splice(${i},1);drawLines()">×</button>
+      <div class="line-cost num" id="lc${i}"></div></div>`;
+  }).join('');
+  updEd();
+}
+function updEd() {
+  const price = Number($('#mPrice').value) || 0, cost = costOf(ed.lines), k = metrics(price, cost);
+  ed.lines.forEach((l, i) => { const m = matById(l.matId), el = $('#lc' + i);
+    if (el) el.textContent = m ? `${l.qty || 0}${m.unit} × ${yenU(unitPrice(m))}/${m.unit} = ${yen1((Number(l.qty) || 0) * unitPrice(m))}` : ''; });
+  $('#sum').innerHTML = `<div><small>原価</small><strong>${yen1(cost)}</strong></div>
+    <div><small>原価率</small><strong style="color:${k.costRate > target() ? 'var(--bad)' : 'var(--good)'}">${pct(k.costRate)}</strong></div>
+    <div><small>粗利</small><strong>${yen(k.gross)}</strong></div><div><small>粗利率</small><strong>${pct(k.grossRate)}</strong></div>`;
+  const sim = Number($('#sim').value), need = Math.ceil(cost * taxRate() / target() / 10) * 10;
+  $('#simOut').innerHTML = (sim > 0 ? (() => { const s = metrics(sim, cost); return `原価率 <b>${pct(s.costRate)}</b>　粗利 <b>${yen(s.gross)}</b>（${pct(s.grossRate)}）<br>` + (price ? `今の売価より 1杯あたり ${yen(s.gross - k.gross)} ${s.gross >= k.gross ? '増えます' : '減ります'}<br>` : ''); })() : '')
+    + (cost > 0 ? `目標原価率 ${pct(target())} にするには 売価 <b>${yen(need)}</b> 以上（税込）` : '');
+}
+async function saveMenuEd() {
+  const menu = { id: ed.menu.id, name: $('#mName').value.trim(), cat: $('#mCat').value.trim(), price: Number($('#mPrice').value) || 0, active: $('#mActive').value === '1' };
+  if (!menu.name) return alert('メニュー名を入れてください');
+  D = await call('saveMenu', menu, ed.lines.filter(l => l.matId && Number(l.qty) > 0));
+  closeModal(); render(); toast('保存しました');
+}
+async function delMenu(id) {
+  if (!confirm('このメニューを削除しますか？\n（過去の販売記録は残ります。一時的に出さないだけなら「休止」がおすすめです）')) return;
+  D = await call('deleteMenu', id); closeModal(); render(); toast('削除しました');
+}
+
+// ===== 販売入力 =====
+async function loadDay(date) {
+  const r = await call('getDay', date);
+  salesDate = date; salesQty = r.qty; salesDaily = r.daily; salesDirty = false; renderSales();
+}
+function renderSales() {
+  if (!salesDate) return loadDay(D.today);
+  const list = D.menus.filter(m => m.active || salesQty[m.id]);
+  const body = cats(list).map(c => `<h2>${esc(c)}</h2>` + list.filter(m => (m.cat || 'その他') === c).map(m => `
+    <div class="card row"><div class="grow"><div style="font-weight:700">${esc(m.name)}</div><div class="sub num">${yen(m.price)}</div></div>
+      <div class="qty"><button onclick="addQty('${m.id}',-1)">−</button><input id="q_${m.id}" type="number" inputmode="numeric" value="${salesQty[m.id] || ''}" placeholder="0" oninput="setQty('${m.id}',this.value)"><button onclick="addQty('${m.id}',1)">＋</button></div></div>`).join('')).join('');
+  const d = salesDaily;
+  $('#main').innerHTML = `
+    <label style="margin-top:0">日付</label><input type="date" value="${salesDate}" onchange="if(!salesDirty||confirm('保存していない入力があります。日付を変えますか？'))loadDay(this.value);else this.value=salesDate">
+    <h2>レジ締め</h2>
+    <div class="card">
+      <div class="row"><div class="grow"><label style="margin-top:0">レジ売上（税込・円）</label><input type="number" inputmode="numeric" value="${esc(d.reg)}" placeholder="例：48500" oninput="setDaily('reg',this.value)"></div>
+        <div style="width:110px"><label style="margin-top:0">客数（人）</label><input type="number" inputmode="numeric" value="${esc(d.customers)}" placeholder="例：92" oninput="setDaily('customers',this.value)"></div></div>
+      <label>天気</label><div class="wx" id="wx"></div>
+      <label>メモ</label><input value="${esc(d.memo)}" placeholder="例：近くでイベント、臨時休業" oninput="setDaily('memo',this.value)">
+    </div>
+    <h2>杯数（わかる日だけ。入れると原価・利益が正確になります）</h2>
+    ${list.length ? body : '<div class="empty">販売中のメニューがありません</div>'}
+    <div class="footer-bar"><div class="row"><div class="grow num" id="salesTotal"></div><button class="btn" onclick="saveSales()">保存</button></div></div>`;
+  drawWx(); updSalesTotal();
+}
+function drawWx() {
+  $('#wx').innerHTML = WEATHER.map(([w, i]) => `<button class="${salesDaily.weather === w ? 'on' : ''}" onclick="setDaily('weather',salesDaily.weather==='${w}'?'':'${w}');drawWx()">${i} ${w}</button>`).join('');
+}
+function setDaily(k, v) { salesDaily[k] = v; salesDirty = true; updSalesTotal(); }
+function setQty(id, v) { salesQty[id] = Math.max(0, Math.floor(Number(v) || 0)); salesDirty = true; updSalesTotal(); }
+function addQty(id, d) { setQty(id, (salesQty[id] || 0) + d); $('#q_' + id).value = salesQty[id] || ''; }
+function updSalesTotal() {
+  let cups = 0, sales = 0;
+  D.menus.forEach(m => { const q = salesQty[m.id] || 0; cups += q; sales += q * m.price; });
+  const reg = salesDaily.reg !== '' && salesDaily.reg != null ? Number(salesDaily.reg) : null;
+  $('#salesTotal').innerHTML = (reg != null ? `レジ <b>${yen(reg)}</b>　` : '') + `${cups}杯 ${yen(sales)}`
+    + (salesDirty ? '<div class="sub" style="color:var(--bad)">未保存</div>' : '');
+}
+async function saveSales() {
+  const items = Object.keys(salesQty).map(id => ({ menuId: id, qty: salesQty[id] }));
+  const r = await call('saveDay', salesDate, items, salesDaily);
+  salesQty = r.qty; salesDaily = r.daily; salesDirty = false; renderSales(); toast(salesDate + ' を保存しました');
+}
+
+// ===== 集計 =====
+const ymShift = (ym, k) => { const d = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5)) - 1 + k, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
+const daysIn = ym => new Date(Number(ym.slice(0, 4)), Number(ym.slice(5)), 0).getDate();
+const ymLabel = ym => Number(ym.slice(5)) + '月';
+const DOW = ['日', '月', '火', '水', '木', '金', '土'];
+const dow = date => new Date(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8))).getDay();
+let charts = {};
+function chart(id, cfg) {
+  if (charts[id]) charts[id].destroy();
+  const el = document.getElementById(id);
+  if (!el || !window.Chart) return;
+  cfg.options = Object.assign({ responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: { legend: { labels: { boxWidth: 12, font: { size: 11 } } } },
+    scales: { y: { beginAtZero: true, ticks: { font: { size: 10 }, callback: v => v >= 10000 ? v / 10000 + '万' : v.toLocaleString() } }, x: { ticks: { font: { size: 10 } } } } }, cfg.options || {});
+  charts[id] = new Chart(el, cfg);
+}
+// 販売中メニューの平均原価率（杯数の記録がない月の見積もりに使う）
+function menuAvgRate() {
+  const k = D.menus.filter(m => m.active).map(menuMetrics).filter(x => isFinite(x.costRate));
+  return k.length ? k.reduce((a, x) => a + x.costRate, 0) / k.length : 0;
+}
+// 日ごとの数字：売上はレジ売上、なければ杯数から。原価はその日の杯数の実績原価率 → その月の実績 → メニュー平均 の順で使う
+function buildDays(raw) {
+  const t = taxRate(), mon = {}, avg = menuAvgRate();
+  raw.forEach(d => { const m = mon[d.date.slice(0, 7)] = mon[d.date.slice(0, 7)] || { s: 0, c: 0 }; m.s += d.cupSales / t; m.c += d.cupCost; });
+  return raw.map(d => {
+    const incl = d.reg != null ? d.reg : d.cupSales, m = mon[d.date.slice(0, 7)];
+    const rate = d.cupSales > 0 ? d.cupCost / (d.cupSales / t) : m.s > 0 ? m.c / m.s : avg;
+    return Object.assign({}, d, { incl, ex: incl / t, cost: incl / t * rate, est: !(d.cupSales > 0) && incl > 0 });
+  }).filter(d => d.incl > 0 || d.customers || d.weather || d.memo);
+}
+function sumDays(days, ym, upTo) {
+  const s = { incl: 0, ex: 0, cost: 0, cups: 0, cust: 0, custSales: 0, n: 0, est: 0 };
+  days.forEach(d => {
+    if (d.date.slice(0, 7) !== ym || (upTo && Number(d.date.slice(8)) > upTo) || !(d.incl > 0)) return;
+    s.incl += d.incl; s.ex += d.ex; s.cost += d.cost; s.cups += d.cups; s.n++; if (d.est) s.est++;
+    if (d.customers) { s.cust += d.customers; s.custSales += d.incl; }
+  });
+  s.gross = s.ex - s.cost;
+  return s;
+}
+const diff = (a, b) => b > 0 ? `<span class="${a >= b ? 'up' : 'down'}">${a >= b ? '+' : ''}${pct(a / b - 1)}</span>` : '<span class="sub">比較データなし</span>';
+// 曜日・天気ごとの平均売上（売上のある日だけ）
+function avgBy(days, keyFn, keys) {
+  const g = {};
+  days.filter(d => d.incl > 0).forEach(d => { const k = keyFn(d); if (k === '' || k == null) return; (g[k] = g[k] || []).push(d.incl); });
+  return keys.map(k => ({ k, n: (g[k] || []).length, avg: g[k] ? g[k].reduce((a, b) => a + b, 0) / g[k].length : 0 }));
+}
+
+async function renderReport() {
+  if (!reportMonth) reportMonth = D.today.slice(0, 7);
+  const r = await call('getReport', reportMonth);
+  if (tab !== 'report') return;
+  const ym = reportMonth, t = taxRate(), dim = daysIn(ym), bizDays = D.settings['月の営業日数'] || 26;
+  const all = buildDays(r.days), fixed = D.fixed.reduce((a, f) => a + f.amount, 0);
+  const cur = sumDays(all, ym), op = cur.gross - fixed;
+  // 前月・前年比較は同じ日数分で比べる（今月なら今日まで）
+  const upTo = ym === D.today.slice(0, 7) ? Number(D.today.slice(8)) : dim;
+  const curTo = sumDays(all, ym, upTo), prev = sumDays(all, ymShift(ym, -1), upTo), lastY = sumDays(all, ymShift(ym, -12), upTo);
+  // 損益分岐点（税込の売上）：固定費 ÷ 粗利率
+  const grossRate = cur.ex > 0 ? cur.gross / cur.ex : 1 - menuAvgRate();
+  const own = isOwner(); // スタッフには原価・利益・固定費を出さない
+  const be = own && fixed > 0 && grossRate > 0 ? fixed / grossRate * t : null, beDay = be ? be / bizDays : null;
+  // 曜日・天気は直近3か月で見る
+  const recent = all.filter(d => d.date.slice(0, 7) >= ymShift(ym, -2) && d.date.slice(0, 7) <= ym);
+  const byDow = avgBy(recent, d => dow(d.date), [1, 2, 3, 4, 5, 6, 0]);
+  const byWx = avgBy(recent, d => d.weather, WEATHER.map(w => w[0]));
+  const months = [-5, -4, -3, -2, -1, 0].map(k => ymShift(ym, k)), mSum = months.map(m => sumDays(all, m));
+  const menus = r.menus.map(m => Object.assign(m, { ex: m.sales / t })).sort((a, b) => (b.ex - b.cost) - (a.ex - a.cost)); // スタッフは原価0なので売上順
+  const monthDays = all.filter(d => d.date.slice(0, 7) === ym);
+
+  $('#main').innerHTML = `
+    <label style="margin-top:0">月</label><input type="month" value="${ym}" onchange="reportMonth=this.value;render()">
+    <h2>${ymLabel(ym)}の数字</h2>
+    <div class="kpi num">
+      <div><small>売上（税込）</small><strong>${yen(cur.incl)}</strong><small>税抜 ${yen(cur.ex)}・${cur.n}日</small></div>
+      <div><small>客数・客単価</small><strong>${cur.cust.toLocaleString()}人</strong><small>客単価 ${cur.cust ? yen(cur.custSales / cur.cust) : '―'}</small></div>
+      ${own ? `<div><small>原価（材料費）${cur.est ? '※' : ''}</small><strong>${yen(cur.cost)}</strong><small>原価率 ${pct(cur.ex ? cur.cost / cur.ex : NaN)}</small></div>
+      <div><small>粗利${cur.est ? '※' : ''}</small><strong>${yen(cur.gross)}</strong><small>粗利率 ${pct(cur.ex ? cur.gross / cur.ex : NaN)}</small></div>
+      <div><small>固定費</small><strong>${yen(fixed)}</strong><small>設定タブで変更</small></div>
+      <div><small>営業利益</small><strong class="${op >= 0 ? 'up' : 'down'}">${yen(op)}</strong><small>粗利 − 固定費</small></div>` : ''}
+      <div class="big"><small>${upTo < dim ? `1日〜${upTo}日の比較（税込）` : '前月・前年との比較（税込）'}</small>
+        <div class="row"><span class="grow">前月同期 ${yen(prev.incl)}</span>${diff(curTo.incl, prev.incl)}</div>
+        <div class="row"><span class="grow">前年同月 ${yen(lastY.incl)}</span>${diff(curTo.incl, lastY.incl)}</div></div>
+      ${own ? `<div class="big"><small>損益分岐点（黒字になる売上・税込）</small>${be ? `<strong>月 ${yen(be)}</strong>（1日 約${yen(beDay)}・営業${bizDays}日）
+        <div style="margin-top:4px">${cur.incl >= be ? `<span class="chip">達成 ＋${yen(cur.incl - be)}</span>` : `<span class="chip bad">あと ${yen(be - cur.incl)}</span>`}
+        <span class="sub">粗利率 ${pct(grossRate)}${cur.ex ? '' : '（メニュー平均）'}</span></div>
+        <div style="background:#eee;border-radius:4px;margin-top:6px"><div class="bar" style="width:${Math.min(100, cur.incl / be * 100)}%"></div></div>`
+        : '<span class="sub">固定費を「設定」タブに入れると表示されます</span>'}</div>` : ''}
+    </div>
+    ${own && cur.est ? `<div class="note">※ 杯数を入れていない日（${cur.est}日）は、原価を見積もりで計算しています</div>` : ''}
+    <h2>日別の売上（税込）</h2>
+    <div class="card"><div class="chartbox"><canvas id="cDaily"></canvas></div>${be ? '<div class="note">点線＝1日の黒字ライン（損益分岐点 ÷ 営業日数）。下回った日は赤</div>' : ''}</div>
+    <h2>累計売上（${own ? '目標・' : ''}前月・前年と比べる）</h2>
+    <div class="card"><div class="chartbox"><canvas id="cCum"></canvas></div></div>
+    <h2>曜日別の平均売上（直近3か月）</h2>
+    <div class="card"><div class="chartbox"><canvas id="cDow"></canvas></div></div>
+    <h2>天気別の平均売上（直近3か月）</h2>
+    <div class="card"><div class="chartbox"><canvas id="cWx"></canvas></div><div class="note">${byWx.map(x => `${wIcon(x.k)}${x.n}日`).join('　')}（天気を入れた日だけ）</div></div>
+    <h2>直近6か月の推移（税抜）</h2>
+    <div class="card"><div class="chartbox"><canvas id="cTrend"></canvas></div></div>
+    <h2>メニュー別（杯数を入れた分・${own ? '粗利' : '売上'}が多い順）</h2>
+    <div class="card">${menus.length ? `<table class="num"><tr><th>メニュー</th><th>杯数</th><th>売上</th>${own ? '<th>粗利</th>' : ''}</tr>
+      ${menus.map(m => `<tr><td>${esc(m.name)}</td><td>${m.cups}</td><td>${yen(m.ex)}</td>${own ? `<td>${yen(m.ex - m.cost)}</td>` : ''}</tr>`).join('')}</table>` : '<div class="empty">この月は杯数の記録がありません</div>'}</div>
+    <h2>日別の一覧</h2>
+    <div class="card">${monthDays.length ? `<table class="num"><tr><th>日付</th><th>客数</th><th>売上(税込)</th>${own ? '<th>粗利</th>' : ''}</tr>
+      ${monthDays.map(d => `<tr><td>${Number(d.date.slice(8))}日(${DOW[dow(d.date)]}) ${wIcon(d.weather)}${d.memo ? `<div class="sub">${esc(d.memo)}</div>` : ''}</td><td>${d.customers || '―'}</td><td>${yen(d.incl)}</td>${own ? `<td>${yen(d.ex - d.cost)}${d.est ? '※' : ''}</td>` : ''}</tr>`).join('')}</table>` : '<div class="empty">記録なし</div>'}</div>`;
+
+  const labels = Array.from({ length: dim }, (_, i) => i + 1);
+  const dayVal = (m, i) => { const d = all.find(x => x.date === m + '-' + String(i).padStart(2, '0')); return d && d.incl > 0 ? d.incl : null; };
+  const daily = labels.map(i => dayVal(ym, i));
+  chart('cDaily', { type: 'bar', data: { labels, datasets: [
+    { label: '売上', data: daily, backgroundColor: daily.map(v => beDay && v < beDay ? '#e8a49c' : '#a0714f') },
+    ...(beDay ? [{ type: 'line', label: '黒字ライン', data: labels.map(() => Math.round(beDay)), borderColor: '#c0392b', borderDash: [5, 4], borderWidth: 1.5, pointRadius: 0 }] : []),
+  ] }, options: { plugins: { legend: { display: false }, tooltip: { callbacks: { title: c => { const d = all.find(x => x.date === ym + '-' + String(c[0].label).padStart(2, '0'));
+    return c[0].label + '日' + (d ? `(${DOW[dow(d.date)]}) ${wIcon(d.weather)}` : ''); }, label: c => c.dataset.label + ' ' + yen(c.raw) } } } } });
+
+  // 累計：今月は最後に記録のある日（今月なら今日）まで
+  const cum = (m, stop) => { let s = 0; return labels.map(i => { if (i > stop || i > daysIn(m)) return null; s += dayVal(m, i) || 0; return s; }); };
+  const lastRec = Math.max(0, ...monthDays.filter(d => d.incl > 0).map(d => Number(d.date.slice(8))));
+  const pm = ymShift(ym, -1), py = ymShift(ym, -12);
+  chart('cCum', { type: 'line', data: { labels, datasets: [
+    { label: ymLabel(ym), data: cum(ym, Math.max(lastRec, upTo < dim ? upTo : 0)), borderColor: '#6b4428', backgroundColor: '#6b4428', borderWidth: 2.5, pointRadius: 0 },
+    { label: '前月', data: sumDays(all, pm).n ? cum(pm, dim) : [], borderColor: '#c9a88c', borderWidth: 1.5, pointRadius: 0 },
+    { label: '前年', data: sumDays(all, py).n ? cum(py, dim) : [], borderColor: '#7a9cc6', borderWidth: 1.5, pointRadius: 0 },
+    ...(be ? [{ label: '黒字ライン', data: labels.map(i => Math.round(be * i / dim)), borderColor: '#c0392b', borderDash: [5, 4], borderWidth: 1.5, pointRadius: 0 }] : []),
+  ] }, options: { plugins: { tooltip: { mode: 'index', intersect: false, callbacks: { label: c => c.dataset.label + ' ' + yen(c.raw) } } } } });
+
+  chart('cDow', { type: 'bar', data: { labels: byDow.map(x => DOW[x.k]), datasets: [{ label: '平均売上', data: byDow.map(x => Math.round(x.avg)),
+    backgroundColor: byDow.map(x => x.k === 0 || x.k === 6 ? '#6b4428' : '#a0714f') }] },
+    options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${yen(c.raw)}（${byDow[c.dataIndex].n}日の平均）` } } } } });
+  chart('cWx', { type: 'bar', data: { labels: byWx.map(x => wIcon(x.k) + x.k), datasets: [{ label: '平均売上', data: byWx.map(x => Math.round(x.avg)), backgroundColor: '#a0714f' }] },
+    options: { plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `${yen(c.raw)}（${byWx[c.dataIndex].n}日の平均）` } } } } });
+  chart('cTrend', { type: 'bar', data: { labels: months.map(ymLabel), datasets: [
+    { label: '売上', data: mSum.map(s => Math.round(s.ex)), backgroundColor: '#c9a88c' },
+    ...(own ? [{ label: '粗利', data: mSum.map(s => Math.round(s.gross)), backgroundColor: '#6b4428' },
+    { type: 'line', label: '営業利益', data: mSum.map(s => s.n ? Math.round(s.gross - fixed) : null), borderColor: '#2f7d4f', backgroundColor: '#2f7d4f', borderWidth: 2 }] : []),
+  ] }, options: { scales: { y: { beginAtZero: true, ticks: { font: { size: 10 }, callback: v => Math.abs(v) >= 10000 ? v / 10000 + '万' : v.toLocaleString() } } },
+    plugins: { tooltip: { callbacks: { label: c => c.dataset.label + ' ' + yen(c.raw) } } } } });
+}
+
+// ===== 材料 =====
+function renderMats() {
+  const used = id => D.menus.filter(m => (D.recipes[m.id] || []).some(l => l.matId === id));
+  $('#main').innerHTML = (D.materials.length ? cats(D.materials).map(c => `<h2>${esc(c)}</h2>` + D.materials.filter(m => (m.cat || 'その他') === c).map(m => `
+    <div class="card menu-item" onclick="editMat('${m.id}')"><div class="grow"><div style="font-weight:700">${esc(m.name)}</div>
+      <div class="sub num">${m.amount.toLocaleString()}${m.unit}で ${yen(m.price)}　→ 1${m.unit} ${yenU(unitPrice(m))}</div></div>
+      <div class="stats sub">${used(m.id).length}品で使用<br>${esc(m.updated.slice(0, 10))}</div></div>`).join('')).join('')
+    : '<div class="empty">材料を登録すると、メニューの原価が自動で計算されます。<br>例：コーヒー豆 1000g ¥3,000／牛乳 1000ml ¥250／カップ 50個 ¥1,000</div>')
+    + `<button class="btn wide" style="margin-top:8px" onclick="editMat()">＋ 材料を追加</button>`;
+}
+let matEditId = null;
+function editMat(id) {
+  matEditId = id || null;
+  const m = D.materials.find(x => x.id === id) || { name: '', cat: '', amount: '', unit: 'g', price: '' };
+  openModal(id ? '材料を編集' : '材料を追加', `
+    <label>材料名</label><input id="aName" value="${esc(m.name)}" placeholder="例：コーヒー豆（ブラジル）">
+    <label>区分</label><select id="aCat">${MAT_CATS.concat(MAT_CATS.includes(m.cat) || !m.cat ? [] : [m.cat]).map(c => `<option ${c === m.cat ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
+    <div class="row"><div class="grow"><label>購入量</label><input id="aAmt" type="number" inputmode="decimal" value="${m.amount}" placeholder="1000" oninput="updMat()"></div>
+      <div style="width:90px"><label>単位</label><select id="aUnit" onchange="updMat()">${UNITS.map(u => `<option ${u === m.unit ? 'selected' : ''}>${u}</option>`).join('')}</select></div></div>
+    <label>購入価格（円）</label><input id="aPrice" type="number" inputmode="numeric" value="${m.price}" placeholder="3000" oninput="updMat()">
+    <div class="card num" id="aOut" style="margin-top:12px"></div>
+    <button class="btn wide" onclick="saveMat('${id || ''}')">保存する</button>
+    ${id ? `<button class="btn del wide" style="margin-top:8px" onclick="delMat('${id}')">削除</button>` : ''}`);
+  updMat();
+}
+function updMat() {
+  const editing = matById(matEditId);
+  const draft = { id: matEditId, amount: Number($('#aAmt').value), price: Number($('#aPrice').value), unit: $('#aUnit').value };
+  let html = `1${draft.unit}あたり <b>${yenU(unitPrice(draft))}</b>`;
+  if (editing) {
+    const hit = D.menus.filter(m => (D.recipes[m.id] || []).some(l => l.matId === editing.id));
+    if (hit.length) html += `<h2 style="margin:12px 0 6px">影響するメニュー（${hit.length}品）</h2><table><tr><th>メニュー</th><th>今の原価率</th><th>変更後</th></tr>` +
+      hit.map(m => { const a = menuMetrics(m), b = metrics(m.price, costOf(D.recipes[m.id], draft));
+        return `<tr><td>${esc(m.name)}</td><td>${pct(a.costRate)}</td><td style="color:${b.costRate > target() ? 'var(--bad)' : 'inherit'}">${pct(b.costRate)}</td></tr>`; }).join('') + '</table>';
+  }
+  $('#aOut').innerHTML = html;
+}
+async function saveMat(id) {
+  const m = { id, name: $('#aName').value.trim(), cat: $('#aCat').value, amount: Number($('#aAmt').value), unit: $('#aUnit').value, price: Number($('#aPrice').value) || 0 };
+  if (!m.name || !(m.amount > 0)) return alert('材料名と購入量を入れてください');
+  D = await call('saveMaterial', m); closeModal(); render(); toast('保存しました（メニューの原価にも反映）');
+}
+async function delMat(id) {
+  if (!confirm('この材料を削除しますか？')) return;
+  D = await call('deleteMaterial', id); closeModal(); render(); toast('削除しました');
+}
+
+// ===== 設定 =====
+function renderSettings() {
+  const account = `<h2>アカウント</h2>
+    <div class="card row"><div class="grow"><b>${esc(D.me.name)}</b> <span class="sub">${isOwner() ? 'オーナー' : 'スタッフ'}</span></div>
+      <button class="btn sec" onclick="logout()">ログアウト</button></div>`;
+  if (!isOwner()) { $('#main').innerHTML = account + '<div class="note">暗証番号を変えたいときはオーナーに頼んでください</div>'; return; }
+  const s = D.settings;
+  $('#main').innerHTML = `
+    <h2>目標・計算</h2>
+    <div class="card">
+      <label style="margin-top:0">目標原価率（%）</label><input id="sTarget" type="number" inputmode="decimal" value="${Math.round(s['目標原価率'] * 1000) / 10}">
+      <label>消費税率（%）　※売価は税込で入力、利益は税抜で計算</label><input id="sTax" type="number" inputmode="decimal" value="${Math.round(s['消費税率'] * 1000) / 10}">
+      <label>月の営業日数</label><input id="sDays" type="number" inputmode="numeric" value="${s['月の営業日数']}">
+    </div>
+    <h2>固定費（月額）</h2>
+    <div class="card"><div id="fixed"></div>
+      <button class="btn sec wide" style="margin-top:6px" onclick="fixedList.push({name:'',amount:0});drawFixed()">＋ 項目を追加</button>
+      <div class="row num" style="margin-top:10px"><span class="grow sub">合計</span><b id="fixedTotal"></b></div></div>
+    <button class="btn wide" onclick="saveSet()">保存する</button>
+    <h2>スタッフ（暗証番号でログイン）</h2>
+    <div id="staff"><div class="sub">読み込み中…</div></div>
+    <button class="btn sec wide" onclick="editStaff()">＋ スタッフを追加</button>
+    ${account}`;
+  fixedList = D.fixed.map(f => ({ ...f })); drawFixed();
+  call('listStaff').then(drawStaff);
+}
+let fixedList = [], staffList = [];
+function drawFixed() {
+  $('#fixed').innerHTML = fixedList.map((f, i) => `<div class="line"><input value="${esc(f.name)}" placeholder="項目" oninput="fixedList[${i}].name=this.value">
+    <input type="number" inputmode="numeric" value="${f.amount || ''}" placeholder="円" oninput="fixedList[${i}].amount=Number(this.value)||0;sumFixed()">
+    <button class="x" onclick="fixedList.splice(${i},1);drawFixed()">×</button></div>`).join('');
+  sumFixed();
+}
+function sumFixed() { $('#fixedTotal').textContent = yen(fixedList.reduce((a, f) => a + f.amount, 0)); }
+async function saveSet() {
+  const s = { '目標原価率': Number($('#sTarget').value) / 100, '消費税率': Number($('#sTax').value) / 100, '月の営業日数': Number($('#sDays').value) };
+  if (!(s['目標原価率'] > 0)) return alert('目標原価率を入れてください');
+  D = await call('saveSettings', s, fixedList.filter(f => f.name.trim()));
+  render(); toast('保存しました');
+}
+function drawStaff(list) {
+  staffList = list;
+  const el = $('#staff');
+  if (el) el.innerHTML = list.map(u => `<div class="card menu-item" onclick="editStaff('${u.id}')"><div class="grow"><b>${esc(u.name)}</b>
+    ${u.role === 'owner' ? '<span class="chip">オーナー</span>' : ''} ${u.active ? '' : '<span class="chip off">停止中</span>'}</div><div class="sub">${esc(u.created.slice(0, 10))}</div></div>`).join('');
+}
+function editStaff(id) {
+  const u = staffList.find(x => x.id === id) || { name: '', role: 'staff', active: true };
+  openModal(id ? 'スタッフを編集' : 'スタッフを追加', `
+    <label>名前</label><input id="uName" value="${esc(u.name)}" placeholder="例：山田">
+    <label>権限</label><select id="uRole"><option value="staff">スタッフ（販売入力と売上の集計だけ）</option><option value="owner" ${u.role === 'owner' ? 'selected' : ''}>オーナー（すべて）</option></select>
+    <label>${id ? '新しい暗証番号（変えないときは空のまま）' : '暗証番号（4〜8桁の数字）'}</label><input id="uPin" type="password" inputmode="numeric" autocomplete="new-password">
+    ${id ? `<label>状態</label><select id="uActive"><option value="1">使える</option><option value="0" ${u.active ? '' : 'selected'}>停止（辞めた人など。ログインできなくなる）</option></select>` : ''}
+    <div class="note">暗証番号は暗号化して保存するため、あとから見ることはできません。忘れたら新しい番号を入れ直してください</div>
+    <button class="btn wide" style="margin-top:12px" onclick="saveStaffEd('${id || ''}')">保存する</button>`);
+}
+async function saveStaffEd(id) {
+  const s = { id, name: $('#uName').value.trim(), role: $('#uRole').value, pin: $('#uPin').value.trim(), active: id ? $('#uActive').value === '1' : true };
+  if (!s.name) return alert('名前を入れてください');
+  if ((!id || s.pin) && !/^\d{4,8}$/.test(s.pin)) return alert('暗証番号は4〜8桁の数字にしてください');
+  drawStaff(await call('saveStaff', s)); closeModal(); toast('保存しました');
+}
+
+// ===== ログイン =====
+async function showLogin() {
+  D = null; closeModal(); $('#nav').innerHTML = ''; $('#who').textContent = ''; $('#title').textContent = 'カフェ数字管理';
+  const st = await call('status');
+  $('#main').innerHTML = `<div class="login"><img class="logo" src="icon-180.png" alt="">` + (st.needsSetup ? `
+    <h3>はじめの設定</h3><p class="sub">オーナーの名前と暗証番号を決めてください</p>
+    <input id="lName" placeholder="名前" style="letter-spacing:0;font-size:18px">
+    <input id="lPin" type="password" inputmode="numeric" placeholder="暗証番号（4〜8桁）" style="margin-top:8px" autocomplete="new-password">
+    <input id="lPin2" type="password" inputmode="numeric" placeholder="もう一度" style="margin-top:8px" autocomplete="new-password">
+    <button class="btn wide" style="margin-top:12px" onclick="setupOwner()">登録してはじめる</button>` : `
+    <p class="sub">暗証番号を入れてください</p>
+    <input id="lPin" type="password" inputmode="numeric" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+    <button class="btn wide" style="margin-top:12px" onclick="login()">ログイン</button>`) + '</div>';
+}
+async function login() {
+  const r = await call('login', $('#lPin').value.trim());
+  store.set('cafe_token', r.token); boot();
+}
+async function setupOwner() {
+  const name = $('#lName').value.trim(), pin = $('#lPin').value.trim();
+  if (!name) return alert('名前を入れてください');
+  if (!/^\d{4,8}$/.test(pin)) return alert('暗証番号は4〜8桁の数字にしてください');
+  if (pin !== $('#lPin2').value.trim()) return alert('暗証番号が一致しません');
+  const r = await call('setupOwner', name, pin);
+  store.set('cafe_token', r.token); boot();
+}
+async function logout() {
+  if (!confirm('ログアウトしますか？')) return;
+  await call('logout').catch(() => {});
+  store.set('cafe_token', null); showLogin();
+}
+
+// ===== 起動 =====
+async function boot() {
+  if (!API_URL) { $('#main').innerHTML = '<div class="empty">API_URL が未設定です（仕組み.md の公開手順を参照）</div>'; return; }
+  if (!store.get('cafe_token')) return showLogin();
+  D = await call('getAll');
+  salesDate = null; reportMonth = null; salesDirty = false;
+  go(isOwner() ? 'menu' : 'sales');
+}
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+boot();
+</script>
+</body>
+</html>
